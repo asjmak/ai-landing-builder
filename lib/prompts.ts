@@ -29,7 +29,8 @@ OUTPUT WAJIB berupa JSON murni (TIDAK ADA teks di luar kurung kurawal JSON), den
   "positioningAngle": string,   // sudut pandang / angle utama (Bahasa Indonesia)
   "primaryMessage": string,     // pesan inti yang menjual HASIL, bukan fitur
   "toneOfVoice": string,        // misal: "Conversational namun otoritatif"
-  "trafficNote": string,        // saran penyesuaian berdasar sumber traffic (organik vs berbayar)
+  "trafficNote": string,       // saran penyesuaian berdasar sumber traffic (organik vs berbayar)
+  "brandColor": string,        // hex warna aksen (mis. "#2563eb"); lihat aturan di bawah
   "modules": [
     {
       "id": string,             // HARUS dari katalog: hero, leadForm, trustBadges, benefits, socialProof, faq, finalCta, footer, stickyBar, countdownTimer, exitIntentPopup, floatingCta, liveActivity
@@ -46,6 +47,7 @@ ATURAN:
 - Module "core" direkomendasikan "on" (kecuali ada alasan sangat kuat menyesuaikan traffic).
 - Module "booster" dipilih "on" HANYA bila relevan dengan sumber traffic & goal; jelaskan reason-nya.
 - Gunakan Bahasa Indonesia untuk semua nilai teks (key JSON tetap bahasa Inggris).
+- "brandColor": pilih warna aksen HEX yang paling sesuai dgn mood & industri produk. JIKA user TIDAK memberi warna brand, WAJIB pilih sendiri yang harmonis & profesional. JIKA user SUDAH memberi, PERTAHANKAN (boleh disesuaikan sedikit agar serasi).
 - Jangan menambah field di luar skema di atas.`;
 
 export const COPYWRITER_SYSTEM = `Anda adalah Direct Response Copywriter senior.
@@ -89,7 +91,7 @@ OUTPUT: HANYA kode HTML murni. TIDAK ADA code fence (seperti \`\`\`html), TIDAK 
 - Dokumen pakai lang="id".
 
 === SISTEM DESAIN (tulis di <style>) ===
-- Blok :root SUDAH diberikan di pesan (PALET WARNA) — SALIN persis ke dalam <style> Anda, JANGAN ubah nilainya. Semua warna (--bg, --surface, --text, --brand, --on-brand, --brand-tint-bg, dll.) sudah harmonis terhadap Warna Brand.
+- Blok :root SUDAH diberikan di pesan (PALET WARNA) — SALIN persis ke dalam <style> Anda, JANGAN ubah nilainya. Palet mengikuti "color roles": netral (--background/--surface/--border/--text-*) MENJADI WARNA DOMINAN halaman; brand HANYA aksen via --primary-600 (skala --primary-50..900) untuk CTA/link/highlight; warna semantik --success/--warning/--error/--info bersifat konvensional (TIDAK ikut warna brand). Semua token sudah dirancang memenuhi kontras WCAG.
 - Tambahkan kelas utilitas berikut di <style> (selain :root di atas):
   .wrap{max-width:var(--container);margin:0 auto;padding:0 1.1rem}
   .section{padding:clamp(3rem,7vw,5.5rem) 0}
@@ -103,7 +105,7 @@ OUTPUT: HANYA kode HTML murni. TIDAK ADA code fence (seperti \`\`\`html), TIDAK 
   .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
   .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease} .reveal.is-visible{opacity:1;transform:none}
   .faq-item{border:1px solid var(--border);border-radius:12px;margin-bottom:.6rem;overflow:hidden} .faq-q{width:100%;text-align:left;background:var(--surface);color:var(--text);padding:1rem 1.2rem;font-weight:600;border:0;cursor:pointer} .faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 1.2rem;color:var(--muted)} .faq-a.open{max-height:500px;padding:.2rem 1.2rem 1rem}
-  :focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+  :focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 - JANGAN tulis nilai warna literal; selalu pakai token (termasuk --on-brand untuk teks di atas tombol brand).
 
@@ -171,8 +173,8 @@ h1,h2,h3{line-height:1.1;letter-spacing:-.02em;font-weight:800}
 .section h2{font-size:clamp(1.6rem,3.4vw,2.4rem);margin-bottom:.6rem}
 .lead{font-size:clamp(1rem,1.6vw,1.2rem);color:var(--muted);max-width:60ch}
 .center{text-align:center}
-.btn{display:inline-block;background:linear-gradient(135deg,var(--brand),var(--brand-ink));color:var(--on-brand);padding:.95rem 1.6rem;border-radius:999px;font-weight:700;text-decoration:none;box-shadow:0 10px 30px var(--brand-soft);transition:transform .2s,box-shadow .2s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px var(--brand-soft)}
+.btn{display:inline-block;background:linear-gradient(135deg,var(--brand),var(--brand-ink));color:var(--on-brand);padding:.95rem 1.6rem;border-radius:999px;font-weight:700;text-decoration:none;box-shadow:0 12px 30px color-mix(in oklch,var(--primary-600) 25%,transparent);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 18px 44px color-mix(in oklch,var(--primary-600) 32%,transparent)}
 .btn-secondary{display:inline-block;border:1px solid var(--border);color:var(--text);padding:.95rem 1.6rem;border-radius:999px;font-weight:600;text-decoration:none;transition:background .2s}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.1rem,2.5vw,1.6rem);box-shadow:var(--shadow);transition:transform .2s}
 .card:hover{transform:translateY(-4px)}
@@ -180,7 +182,7 @@ h1,h2,h3{line-height:1.1;letter-spacing:-.02em;font-weight:800}
 .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .badges{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center}
 .badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:.5rem 1rem;font-size:.9rem;color:var(--muted)}
-.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-ink));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-ink));color:var(--on-brand);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
 .quote{font-size:1.05rem}
 .result{color:var(--brand);font-weight:700}
 .pill{display:inline-block;background:var(--brand-soft);color:var(--brand-ink);border-radius:999px;padding:.25rem .8rem;font-size:.8rem;font-weight:600}
@@ -195,8 +197,15 @@ h1,h2,h3{line-height:1.1;letter-spacing:-.02em;font-weight:800}
 .faq-a.open{max-height:500px;padding:.2rem 1.2rem 1rem}
 .stickybar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:.8rem 1rem;display:flex;gap:.8rem;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(8px)}
 .floating-cta{position:fixed;right:1rem;bottom:1rem;z-index:50}
-.countdown{font-variant-numeric:tabular-nums;font-weight:700;color:var(--brand)}
-:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.countdown{font-variant-numeric:tabular-nums;font-weight:700;color:var(--primary-600)}
+a,.link{color:var(--link);text-decoration:none}
+.text-success{color:var(--success)} .text-warning{color:var(--warning)} .text-error{color:var(--error)} .text-info{color:var(--info)}
+.badge.success{background:var(--success-soft);color:var(--on-success-soft);border-color:transparent}
+.badge.info{background:var(--info-soft);color:var(--on-info-soft);border-color:transparent}
+.badge.warning{background:var(--warning-soft);color:var(--on-warning-soft);border-color:transparent}
+.badge.error{background:var(--error-soft);color:var(--on-error-soft);border-color:transparent}
+.note{background:var(--info-soft);color:var(--on-info-soft);border:1px solid color-mix(in oklch,var(--info) 25%,transparent);border-radius:12px;padding:.8rem 1rem}
+:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
 .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
 .reveal.is-visible{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
@@ -218,11 +227,11 @@ export const DEVELOPER_SECTION_SYSTEM = `Anda adalah Senior Frontend Engineer. H
 ATURAN KETAT:
 - Output HANYA elemen <section class="section ...">...</section>. Pengecualian: footer → <footer class="section ...">...</footer>; stickyBar/floatingCta → <div class="stickybar"> / <div class="floating-cta">.
 - GUNAKAN HANYA kelas berikut (JANGAN buat class/style baru, JANGAN inline style):
-  .wrap .section .section.tint .section.cta .hero .center .lead .btn .btn-secondary .card .grid .badges .badge .avatar .quote .result .pill .field .input .faq-item .faq-q .faq-a .stickybar .floating-cta .countdown .reveal
-- Warna & permukaan HANYA lewat token: var(--brand), var(--brand-ink), var(--brand-soft), var(--on-brand), var(--brand-tint-bg), var(--brand-tint-surface), var(--surface), var(--border), var(--text), var(--muted). JANGAN tulis nilai warna literal.
+  .wrap .section .section.tint .section.cta .hero .center .lead .btn .btn-secondary .card .grid .badges .badge .badge.success .badge.info .badge.warning .badge.error .avatar .quote .result .pill .text-success .text-warning .text-error .text-info .note .link .field .input .faq-item .faq-q .faq-a .stickybar .floating-cta .countdown .reveal
+  - Warna & permukaan HANYA lewat token. Dominan NETRAL: var(--background), var(--surface), var(--surface-variant), var(--border), var(--text-primary), var(--text-secondary), var(--text-muted). Aksen BRAND: var(--primary-600), var(--primary-700), var(--on-primary), var(--brand), var(--brand-ink), var(--brand-soft), var(--on-brand), var(--brand-tint-bg), var(--brand-tint-surface), var(--link), var(--focus-ring). Semantik: var(--success), var(--on-success), var(--success-soft), var(--warning), var(--error), var(--info), dll. JANGAN tulis nilai warna literal.
 - Isi WAJIB diambil PERSIS dari COPY yang diberikan (jangan invent teks). Footer: sertakan copyright + links.
 - Tambahkan class "reveal" pada section agar animasi halus. FAQ: struktur .faq-item > button.faq-q[aria-expanded] + div.faq-a.
-- Beri irama visual: gunakan .section dan .section.tint secara BERGANTIAN antar section (mis. hero=.section, lalu benefits=.section.tint, socialProof=.section, dst). .section.cta untuk Final CTA.
+  - Beri irama visual: NETRAL mendominasi, brand hanya aksen. Gunakan .section dan .section.tint secara BERGANTIAN antar section (mis. hero=.section, lalu benefits=.section.tint, socialProof=.section, dst). .section.cta untuk Final CTA (warna brand).
 - Fragment PADAT & RINGKAS; SELALU tutup semua tag yang dibuka.
 - HANYA keluarkan fragment HTML murni (tanpa code fence, tanpa penjelasan).`;
 
@@ -271,13 +280,16 @@ export function buildBriefText(b: {
   brandColor?: string;
   trafficSource?: string;
 }): string {
+  const brandNote = b.brandColor
+    ? b.brandColor
+    : "TIDAK DISEDIAKAN - biarkan AI memilih warna aksen HEX terbaik";
   return `BRIEF KAMPANYE:
 - Produk / Penawaran: ${b.product}
 - Target Audiens: ${b.audience}
 - Lead Magnet (imbalan): ${b.leadMagnet}
 - Pain Point Utama Audiens: ${b.painPoint}
 - Sumber Traffic: ${b.trafficSource || "campaign umum"}
-- Warna Brand (aksen): ${b.brandColor || "#2563eb"}`;
+- Warna Brand (aksen): ${brandNote}`;
 }
 
 /**

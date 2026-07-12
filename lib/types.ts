@@ -27,6 +27,8 @@ export interface StrategyOutput {
   primaryMessage: string;
   toneOfVoice: string;
   trafficNote: string;
+  /** Warna aksen yang disarankan (hex). AI memilih bila user tak memberi brand color. */
+  brandColor?: string;
   modules: StrategyModule[];
 }
 

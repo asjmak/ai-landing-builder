@@ -124,6 +124,8 @@ export default function Home() {
       }
       if (streamError) throw new Error(streamError);
       if (finalResult === null) throw new Error("Tidak ada hasil.");
+      const aiBrand = finalResult?.strategy?.brandColor;
+      if (aiBrand) setForm((f) => ({ ...f, brandColor: aiBrand }));
       if (abMode) { setAbData(finalResult); setStrategy(finalResult.strategy); setCopy(finalResult.a.copy); setStatuses(finalResult.a.statuses); setHtml(finalResult.a.html); setSelectedVariant("A"); setView("compare"); }
       else { setStrategy(finalResult.strategy); setCopy(finalResult.copy); setStatuses(finalResult.statuses); setHtml(finalResult.html); setView("single"); }
       setTab("preview");

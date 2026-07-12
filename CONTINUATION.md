@@ -160,3 +160,41 @@ terlihat jelek karena token warna di-hardcode).
   kuning→bg gelap & on-brand hitam; buildShell pakai `.section.tint` & `var(--on-brand)`. Generate nyata
   merah sempat jalan (3 section pertama sukses pakai shell baru) lalu stall karena model gratis melambat
   (bukan bug kode).
+
+## Log sesi 2026-07-12 (lanjutan ke-6) — Sistem warna "color roles" + AI pilih hue
+Fokus: realisasi ide user — warna landing page dihasilkan dari sistem peran warna
+(color roles), bukan acak; AI hanya memilih HUE bila user tak memberi brand color.
+
+- [x] **`lib/palette.ts` ditulis ulang** → sistem token peran berbasis OKLCH (deterministik):
+  - Skala **Primary 50–900** dari hue brand (L/C bervariasi, hue tetap); `--brand` =
+    `--primary-600` (warna brand dihormati persis sebagai aksen).
+  - Skala **Neutral 50–950** achromatic (C=0) → warna DOMINAN halaman (~80%):
+    `--background/--surface/--surface-variant/--border/--text-*`.
+  - **Color roles**: `--link`, `--focus-ring`, `--on-primary`, `--brand-tint-bg/surface`.
+  - **Warna semantik** konvensional & TAK ikut brand: `--success/--warning/--error/--info`
+    (+ `*-soft` & `on-*`).
+  - `--on-primary` otomatis (kontras WCAG): teks terang di brand gelap, sebaliknya.
+  - Dukungan **light + dark** via `@media (prefers-color-scheme: dark)`.
+  - `paletteToCssVars()` (untuk shell & injeksi prompt) + `palettePreview()` (swatch UI)
+    dibangun dari `computePalette()` yang sama → konsisten.
+- [x] **`lib/prompts.ts`**:
+  - `buildShell` (mode Modular) pakai token baru: netral dominant, brand hanya aksen
+    (CTA/link/highlight), semantic classes (`.badge.success/.info/.warning/.error`,
+    `.text-*`, `.note`), `:focus-visible` → `var(--focus-ring)`.
+  - `DEVELOPER_SYSTEM` & `DEVELOPER_SECTION_SYSTEM` diperbarui: filosofi color-roles,
+    daftar kelas & token baru, ritme "netral dominan, brand aksen".
+  - **STRATEGIST_SYSTEM** kini mengembalikan `brandColor` (hex): bila user TIDAK memberi
+    warna, AI memilih hue terbaik; bila user memberi, dipertahankan.
+  - `buildBriefText` instruksikan Strategist memilih bila kosong.
+- [x] **`lib/pipeline.ts`**: `resolveBrand(brief, strategy)` — prioritas user → saran AI →
+  default. Dipakai di `generateLandingPage` & `generateAB` (single-shot & modular).
+- [x] **`lib/types.ts`**: `StrategyOutput.brandColor?` ditambahkan.
+- [x] **`app/page.tsx`**: setelah generate, `form.brandColor` diset dari saran AI
+  (termasuk A/B) → swatch & render berikutnya konsisten.
+- Verifikasi: `tsc --noEmit` bersih; `next build` lolos (9 halaman); runtime test
+  `computePalette`/`paletteToCssVars`/`buildShell` untuk 6 brand (biru/merah/kuning/
+  hijau/ungu/navy) → semua hex valid, `--primary-600`==brand, neutral achromatic,
+  `on-primary` kontras benar, CSS berisi `:root`+ dark media + semantic + focus-ring.
+- Catatan: file `lib/prompts.ts` sempat gagal parse (TS1128) gara-gara ternary bersarang
+  ber-emoji `—`/`&` di `buildBriefText`; diperbaiki dengan memindahkan fallback ke variabel
+  `brandNote` (tanpa karakter khusus).

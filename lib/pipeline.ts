@@ -242,6 +242,19 @@ async function generateSection(
 }
 
 /**
+ * Resolusi warna brand akhir: prioritas (1) input user, (2) saran AI dari
+ * Strategist (bila user tak memberi), (3) default. AI hanya memilih HUE bila
+ * kosong; seluruh skala warnanya tetap dihitung deterministik di palette.ts.
+ */
+function resolveBrand(b: CampaignBrief, s?: StrategyOutput): string {
+  const fromBrief = (b.brandColor || "").trim();
+  if (fromBrief) return fromBrief;
+  const fromStrategy = (s?.brandColor || "").trim();
+  if (fromStrategy) return fromStrategy;
+  return "#2563eb";
+}
+
+/**
  * generateLandingPage — menjalankan ketiga tahap berurutan.
  * Mengembalikan strategy, copy, status default, dan HTML final.
  */
@@ -267,7 +280,7 @@ export async function generateLandingPage(
     strategy,
     copy,
     statuses,
-    brandColor: brief.brandColor,
+    brandColor: resolveBrand(brief, strategy),
     modelDeveloper: brief.modelDeveloper,
     apiKey: brief.apiKey,
     baseUrl: brief.baseUrl,
@@ -308,7 +321,7 @@ export async function generateAB(
     strategy,
     copy,
     statuses,
-    brandColor: brief.brandColor,
+    brandColor: resolveBrand(brief, strategy),
     modelDeveloper: brief.modelDeveloper,
     apiKey: brief.apiKey,
     baseUrl: brief.baseUrl,
