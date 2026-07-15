@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import LandingPreview from "@/components/LandingPreview";
 import ModuleToggles from "@/components/ModuleToggles";
 import JsonBlock from "@/components/JsonBlock";
-import CopyEditor from "@/components/CopyEditor";
+import CopyEditor, { COPY_SCHEMA, DEFAULT_ELEMENT_STYLES } from "@/components/CopyEditor";
 import RankedPicker from "@/components/RankedPicker";
 import ModelSelector, { STRATEGIST_DEFAULT, DEVELOPER_DEFAULT, isFreeModel } from "@/components/ModelSelector";
 import { palettePreview } from "@/lib/palette";
@@ -30,7 +30,7 @@ const THEMES = [
 type ThemeId = (typeof THEMES)[number]["id"];
 
 export default function Home() {
-  const [form, setForm] = useState({ product: "", audience: "", leadMagnet: "", painPoint: "", brandColor: "#2563eb", trafficSource: TRAFFIC[0], modelStrategist: STRATEGIST_DEFAULT, modelDeveloper: DEVELOPER_DEFAULT, apiKey: "", modular: isFreeModel(DEVELOPER_DEFAULT) });
+  const [form, setForm] = useState({ product: "", audience: "", leadMagnet: "", painPoint: "", brandColor: "#2563eb", trafficSource: TRAFFIC[0], modelStrategist: STRATEGIST_DEFAULT, modelDeveloper: DEVELOPER_DEFAULT, apiKey: "", modular: isFreeModel(DEVELOPER_DEFAULT), badgeStyle: "grid", heroStyle: "auto" });
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [strategy, setStrategy] = useState<StrategyOutput | null>(null);
@@ -125,9 +125,25 @@ export default function Home() {
       if (streamError) throw new Error(streamError);
       if (finalResult === null) throw new Error("Tidak ada hasil.");
       const aiBrand = finalResult?.strategy?.brandColor;
-      if (aiBrand) setForm((f) => ({ ...f, brandColor: aiBrand }));
-      if (abMode) { setAbData(finalResult); setStrategy(finalResult.strategy); setCopy(finalResult.a.copy); setStatuses(finalResult.a.statuses); setHtml(finalResult.a.html); setSelectedVariant("A"); setView("compare"); }
-      else { setStrategy(finalResult.strategy); setCopy(finalResult.copy); setStatuses(finalResult.statuses); setHtml(finalResult.html); setView("single"); }
+      const aiHeroStyle = finalResult?.strategy?.heroStyle;
+      if (aiBrand || aiHeroStyle) setForm((f) => ({ ...f, ...(aiBrand ? { brandColor: aiBrand } : {}), ...(aiHeroStyle && f.heroStyle === "auto" ? { heroStyle: aiHeroStyle } : {}) }));
+      // Pre-fill default styles ke setiap module
+      const fillDefaults = (c: CopyOutput): CopyOutput => ({
+        modules: c.modules.map((m) => {
+          if (m.content._styles && Object.keys(m.content._styles).length > 0) return m;
+          const schema = COPY_SCHEMA[m.id];
+          if (!schema) return m;
+          const styles: Record<string, Record<string, string>> = {};
+          for (const field of schema) {
+            if (field.type !== "list" && DEFAULT_ELEMENT_STYLES[field.key]) {
+              styles[field.key] = { ...DEFAULT_ELEMENT_STYLES[field.key] };
+            }
+          }
+          return { ...m, content: { ...m.content, _styles: styles } };
+        }),
+      });
+      if (abMode) { setAbData(finalResult); setStrategy(finalResult.strategy); setCopy(fillDefaults(finalResult.a.copy)); setStatuses(finalResult.a.statuses); setHtml(finalResult.a.html); setSelectedVariant("A"); setView("compare"); }
+      else { setStrategy(finalResult.strategy); setCopy(fillDefaults(finalResult.copy)); setStatuses(finalResult.statuses); setHtml(finalResult.html); setView("single"); }
       setTab("preview");
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   }
@@ -136,7 +152,7 @@ export default function Home() {
 
   async function handleRender() {
     if (!strategy || !copy) return; setLoadingRender(true); setError("");
-    try { const res = await fetch("/api/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ strategy, copy, statuses, brandColor: form.brandColor, modelDeveloper: form.modelDeveloper, apiKey: form.apiKey, modular: form.modular })}); const data = await res.json(); if (!res.ok) throw new Error(data.error || "Gagal render."); setHtml(data.html); setTab("preview"); } catch (e: any) { setError(e.message); } finally { setLoadingRender(false); }
+    try { const res = await fetch("/api/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ strategy, copy, statuses, brandColor: form.brandColor, modelDeveloper: form.modelDeveloper, apiKey: form.apiKey, modular: form.modular, badgeStyle: form.badgeStyle, heroStyle: form.heroStyle })}); const data = await res.json(); if (!res.ok) throw new Error(data.error || "Gagal render."); setHtml(data.html); setTab("preview"); } catch (e: any) { setError(e.message); } finally { setLoadingRender(false); }
   }
   function toggleModule(id: string, val: "on" | "off") { setStatuses((s) => ({ ...s, [id]: val })); }
   function handleDownload() { if (!html) return; const blob = new Blob([html], { type: "text/html" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "landing-page.html"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
@@ -269,8 +285,33 @@ export default function Home() {
                 </label>
               </div>
               <div>
-                <label className={labelCls}>OpenRouter API Key <span className="text-[var(--text-faint)]">(opsional)</span></label>
-                <input type="password" className={fieldCls} placeholder="sk-or-…  (atau set di .env.local)" value={form.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
+                <label className={labelCls}>Gaya Trust Badges</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: "grid", label: "🗂️ Icon Cards" },
+                    { value: "stats", label: "📊 Stats Counter" },
+                    { value: "strip", label: "➖ Icon Strip" },
+                    { value: "gradient", label: "✨ Gradient Cards" },
+                    { value: "pill", label: "💊 Pill Badges" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, badgeStyle: opt.value }))}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        form.badgeStyle === opt.value
+                          ? "bg-[var(--accent)] text-white shadow-sm"
+                          : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>AI API Key <span className="text-[var(--text-faint)]">(opsional)</span></label>
+                <input type="password" className={fieldCls} placeholder="sk-…  (atau set di .env.local)" value={form.apiKey} onChange={(e) => update("apiKey", e.target.value)} />
               </div>
             </div>
           </div>
@@ -369,7 +410,43 @@ export default function Home() {
             )}
             {tab === "modules" && strategy && (
               <div className="p-4">
-                <ModuleToggles strategy={strategy} statuses={statuses} onChange={toggleModule} />
+                <ModuleToggles
+                  strategy={strategy}
+                  statuses={statuses}
+                  heroStyle={form.heroStyle}
+                  badgeStyle={form.badgeStyle}
+                  onChange={toggleModule}
+                  onHeroStyleChange={(style) => {
+                    setForm((f) => ({ ...f, heroStyle: style }));
+                    if (strategy && copy) {
+                      setLoadingRender(true);
+                      fetch("/api/render", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ strategy, copy, statuses, brandColor: form.brandColor, modelDeveloper: form.modelDeveloper, apiKey: form.apiKey, modular: form.modular, badgeStyle: form.badgeStyle, heroStyle: style }),
+                      })
+                        .then((r) => r.json())
+                        .then((data) => { if (data.html) setHtml(data.html); })
+                        .catch(() => {})
+                        .finally(() => setLoadingRender(false));
+                    }
+                  }}
+                  onBadgeStyleChange={(style) => {
+                    setForm((f) => ({ ...f, badgeStyle: style }));
+                    if (strategy && copy) {
+                      setLoadingRender(true);
+                      fetch("/api/render", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ strategy, copy, statuses, brandColor: form.brandColor, modelDeveloper: form.modelDeveloper, apiKey: form.apiKey, modular: form.modular, badgeStyle: style, heroStyle: form.heroStyle }),
+                      })
+                        .then((r) => r.json())
+                        .then((data) => { if (data.html) setHtml(data.html); })
+                        .catch(() => {})
+                        .finally(() => setLoadingRender(false));
+                    }
+                  }}
+                />
               </div>
             )}
             {tab === "modules" && !strategy && (

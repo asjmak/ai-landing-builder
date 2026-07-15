@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
       apiKey: body.apiKey,
       baseUrl: body.baseUrl,
       modular: body.modular,
+      badgeStyle: body.badgeStyle,
+      heroStyle: body.heroStyle,
     };
 
     const result = await generateLandingPage(brief, (m) => send({ type: "log", message: m }));

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const html = await renderLandingPage({ strategy, copy, statuses, brandColor, modelDeveloper, apiKey, baseUrl, modular: body.modular });
+    const html = await renderLandingPage({ strategy, copy, statuses, brandColor, modelDeveloper, apiKey, baseUrl, modular: body.modular, badgeStyle: body.badgeStyle, heroStyle: body.heroStyle });
     return NextResponse.json({ html });
   } catch (e: any) {
     if (e instanceof GatewayError) {

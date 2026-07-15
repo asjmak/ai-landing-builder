@@ -102,6 +102,8 @@ export async function runDeveloper(params: {
   apiKey?: string;
   baseUrl?: string;
   modular?: boolean;
+  badgeStyle?: string;
+  heroStyle?: string;
   onLog?: (m: string) => void;
 }): Promise<string> {
   if (params.modular) return runDeveloperModular(params);
@@ -111,8 +113,10 @@ export async function runDeveloper(params: {
     `COPY:\n${JSON.stringify(params.copy)}`,
     `STATUSES (override user):\n${JSON.stringify(params.statuses)}`,
     `BRAND COLOR: ${params.brandColor || "#2563eb"}`,
+    params.badgeStyle ? `BADGE_STYLE: ${params.badgeStyle}` : "",
+    params.heroStyle ? `HERO_STYLE: ${params.heroStyle}` : "",
     `PALET WARNA (salin ke :root di <style> Anda, JANGAN ubah):\n${paletteToCssVars(params.brandColor || "#2563eb")}`,
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
     { role: "system", content: DEVELOPER_SYSTEM },
@@ -169,6 +173,8 @@ async function runDeveloperModular(
     modelDeveloper: string;
     apiKey?: string;
     baseUrl?: string;
+    badgeStyle?: string;
+    heroStyle?: string;
     onLog?: (m: string) => void;
   },
 ): Promise<string> {
@@ -205,14 +211,33 @@ async function generateSection(
   moduleId: string,
   content: Record<string, any>,
   brand: string,
-  params: { modelDeveloper: string; apiKey?: string; baseUrl?: string },
+  params: { modelDeveloper: string; apiKey?: string; baseUrl?: string; badgeStyle?: string; heroStyle?: string },
 ): Promise<string> {
-  const userMsg = [
+  const lines = [
     `MODULE: ${moduleId}`,
     `BRAND COLOR: ${brand}`,
     `COPY (isi untuk module ini):\n${JSON.stringify(content)}`,
-    `KELAS TERSEDIA: .wrap .section .section.tint .section.cta .hero .center .lead .btn .btn-secondary .card .grid .badges .badge .avatar .quote .result .pill .field .input .faq-item .faq-q .faq-a .stickybar .floating-cta .countdown .reveal`,
-  ].join("\n\n");
+  ];
+  if (moduleId === "trustBadges" && params.badgeStyle) {
+    lines.push(`BADGE_STYLE: ${params.badgeStyle}`);
+  }
+  if (moduleId === "hero" && params.heroStyle) {
+    lines.push(`HERO_STYLE: ${params.heroStyle}`);
+  }
+  // Pass style overrides from _styles in content
+  if (content._styles && Object.keys(content._styles).length > 0) {
+    lines.push(`STYLE_OVERRIDES:\n${JSON.stringify(content._styles, null, 2)}`);
+  }
+  // Pass section style overrides
+  if (content._sectionStyle && Object.keys(content._sectionStyle).length > 0) {
+    lines.push(`SECTION_STYLE:\n${JSON.stringify(content._sectionStyle, null, 2)}`);
+  }
+  // Pass image URL if present
+  if (content.imageUrl) {
+    lines.push(`IMAGE_URL: ${content.imageUrl}`);
+  }
+  lines.push(`KELAS TERSEDIA: .wrap .section .section.tint .section.cta .hero .center .lead .btn .btn-secondary .card .grid .badges .badge .avatar .quote .result .pill .field .input .faq-item .faq-q .faq-a .stickybar .floating-cta .countdown .reveal .badge-grid .badge-card .badge-icon .badge-stats .badge-stat .stat-num .stat-label .stat-sub .badge-strip .badge-strip-item .badge-gradient .badge-gcard`);
+  const userMsg = lines.join("\n\n");
 
   const call = (extra?: string) =>
     chatCompletion({
@@ -276,6 +301,10 @@ export async function generateLandingPage(
   }
 
   onLog?.("③ Developer — merakit HTML final…");
+  // Resolve heroStyle: user override > strategy recommendation > "modern" default
+  const resolvedHeroStyle = brief.heroStyle && brief.heroStyle !== "auto"
+    ? brief.heroStyle
+    : (strategy.heroStyle || "modern");
   const html = await runDeveloper({
     strategy,
     copy,
@@ -285,6 +314,8 @@ export async function generateLandingPage(
     apiKey: brief.apiKey,
     baseUrl: brief.baseUrl,
     modular: brief.modular,
+    badgeStyle: brief.badgeStyle,
+    heroStyle: resolvedHeroStyle,
     onLog,
   });
   onLog?.("✓ HTML landing page siap");
@@ -356,6 +387,8 @@ export async function renderLandingPage(params: {
   apiKey?: string;
   baseUrl?: string;
   modular?: boolean;
+  badgeStyle?: string;
+  heroStyle?: string;
 }): Promise<string> {
   return runDeveloper(params);
 }

@@ -47,19 +47,68 @@ function resolveApiKey(apiKey?: string): string {
 
 /** Ekstrak JSON dari teks model secara defensif (termasuk bila ada teks di luar {}). */
 function extractJson(text: string): any {
-  const trimmed = text.trim();
+  let trimmed = text.trim();
+
+  // Strip markdown code fences (```json ... ``` atau ``` ... ```)
+  trimmed = trimmed.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+  // Coba parse langsung
   try {
     return JSON.parse(trimmed);
   } catch {
     /* lanjut ke ekstraksi substring */
   }
+
+  // Cari pasangan { ... } terbesar
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
   if (start !== -1 && end !== -1 && end > start) {
-    return JSON.parse(trimmed.slice(start, end + 1));
+    let candidate = trimmed.slice(start, end + 1);
+
+    // Fix trailing commas sebelum } atau ]
+    candidate = candidate.replace(/,\s*([}\]])/g, "$1");
+    // Fix komentar JS-style (// ... atau /* ... */)
+    candidate = candidate.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    // Fix newlines di dalam string values
+    candidate = candidate.replace(/"([^"]*?)[\r\n]+([^"]*?)"/g, (_, a, b) => `"${a}${b}"`);
+
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      /* coba ekstrak lebih agresif */
+    }
+
+    // Brute-force: cari { pertama, lalu hitung balance bracket
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let lastClose = -1;
+    for (let i = start; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (escape) { escape = false; continue; }
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      if (ch === "}") { depth--; if (depth === 0) { lastClose = i; break; } }
+    }
+
+    if (lastClose > start) {
+      let candidate2 = trimmed.slice(start, lastClose + 1);
+      candidate2 = candidate2.replace(/,\s*([}\]])/g, "$1");
+      try {
+        return JSON.parse(candidate2);
+      } catch {
+        /* last resort */
+      }
+    }
   }
-  throw new GatewayError("Model tidak mengembalikan JSON yang valid.");
+
+  throw new GatewayError("Model tidak mengembalikan JSON yang valid. Response: " + trimmed.slice(0, 300));
 }
+
+/** Default timeout untuk fetch ke gateway (ms). Developer stage butuh lebih lama. */
+const FETCH_TIMEOUT_MS = 600_000; // 10 menit per call
 
 export async function chatCompletion(opts: ChatOptions): Promise<any> {
   const baseUrl = resolveBaseUrl(opts.baseUrl);
@@ -78,16 +127,41 @@ export async function chatCompletion(opts: ChatOptions): Promise<any> {
       model: opts.model,
       messages: opts.messages,
       temperature,
+      stream: false,
       ...(useJson ? { response_format: { type: "json_object" } } : {}),
     });
 
   const url = `${baseUrl}/chat/completions`;
 
-  let res = await fetch(url, { method: "POST", headers, body: buildBody(!!opts.jsonMode) });
+  const fetchWithTimeout = (body: string, signal?: AbortSignal) =>
+    fetch(url, { method: "POST", headers, body, signal });
+
+  let controller = new AbortController();
+  let timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(buildBody(!!opts.jsonMode), controller.signal);
+  } catch (e: any) {
+    clearTimeout(timer);
+    if (e?.name === "AbortError") {
+      throw new GatewayError(`Gateway timeout setelah ${FETCH_TIMEOUT_MS / 1000} detik. Coba pakai model yang lebih ringan.`);
+    }
+    throw new GatewayError(`fetch failed — pastikan gateway AI berjalan di ${baseUrl}. Detail: ${e?.message || e}`);
+  }
+  clearTimeout(timer);
 
   // Beberapa model/gateway tidak mendukung response_format -> fallback tanpa json mode
   if (!res.ok && opts.jsonMode) {
-    res = await fetch(url, { method: "POST", headers, body: buildBody(false) });
+    controller = new AbortController();
+    timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      res = await fetchWithTimeout(buildBody(false), controller.signal);
+    } catch (e: any) {
+      clearTimeout(timer);
+      throw new GatewayError(`fetch failed (fallback): ${e?.message || e}`);
+    }
+    clearTimeout(timer);
   }
 
   if (!res.ok) {

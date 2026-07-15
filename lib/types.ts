@@ -29,6 +29,8 @@ export interface StrategyOutput {
   trafficNote: string;
   /** Warna aksen yang disarankan (hex). AI memilih bila user tak memberi brand color. */
   brandColor?: string;
+  /** Gaya hero section yang direkomendasikan AI berdasarkan produk */
+  heroStyle?: string;
   modules: StrategyModule[];
 }
 
@@ -96,4 +98,8 @@ export interface CampaignBrief {
   baseUrl?: string;
   /** Generate HTML bertahap per-section (anti-truncasi untuk model kecil). */
   modular?: boolean;
+  /** Gaya visual trust badges: pill | grid | stats | strip | gradient */
+  badgeStyle?: string;
+  /** Gaya hero section: auto | modern | luxury | creative | corporate */
+  heroStyle?: string;
 }

@@ -2,6 +2,8 @@
 
 import { MODULE_CATALOG } from "@/lib/prompts";
 import type { CopyOutput, ModuleContent, StatusMap } from "@/lib/types";
+import StyleEditor, { type StyleProps } from "./StyleEditor";
+import SectionStyleEditor, { type SectionStyleProps } from "./SectionStyleEditor";
 
 /**
  * Editor konten terstruktur untuk landing page yang sudah di-generate.
@@ -22,11 +24,12 @@ interface FieldDef {
   item?: FieldDef[]; // untuk list berisi objek
 }
 
-const COPY_SCHEMA: Record<string, FieldDef[]> = {
+export const COPY_SCHEMA: Record<string, FieldDef[]> = {
   hero: [
     { key: "headline", label: "Headline", type: "textarea" },
     { key: "subheadline", label: "Sub-headline", type: "textarea" },
     { key: "ctaText", label: "Teks Tombol CTA", type: "text" },
+    { key: "imageUrl", label: "URL Gambar (opsional)", type: "text" },
     { key: "imageHint", label: "Petunjuk Gambar (opsional)", type: "text" },
   ],
   leadForm: [
@@ -41,6 +44,7 @@ const COPY_SCHEMA: Record<string, FieldDef[]> = {
     { key: "note", label: "Catatan", type: "textarea" },
   ],
   benefits: [
+    { key: "title", label: "Judul Section", type: "text" },
     { key: "intro", label: "Pengantar", type: "textarea" },
     {
       key: "items",
@@ -53,6 +57,7 @@ const COPY_SCHEMA: Record<string, FieldDef[]> = {
     },
   ],
   socialProof: [
+    { key: "title", label: "Judul Section", type: "text" },
     { key: "intro", label: "Pengantar", type: "textarea" },
     {
       key: "testimonials",
@@ -67,6 +72,7 @@ const COPY_SCHEMA: Record<string, FieldDef[]> = {
     },
   ],
   faq: [
+    { key: "title", label: "Judul Section", type: "text" },
     {
       key: "items",
       label: "FAQ",
@@ -122,6 +128,59 @@ function updateModuleContent(
   return { modules: modules.map((m) => (m.id === moduleId ? { ...m, content: newContent } : m)) };
 }
 
+/** Ambil semua field keys yang berupa teks (bukan list) dari schema */
+function getTextFields(schema: FieldDef[]): string[] {
+  return schema.filter((f) => f.type !== "list").map((f) => f.key);
+}
+
+/** Default styles berdasarkan shell CSS — tampil saat pertama kali edit */
+export const DEFAULT_ELEMENT_STYLES: Record<string, Record<string, string>> = {
+  headline:     { color: "#1a1a2e", fontSize: "clamp(2rem,5.5vw,3.6rem)", fontWeight: "800" },
+  subheadline:  { color: "#6a6a6a", fontSize: "clamp(1rem,1.5vw,1.15rem)", fontWeight: "400" },
+  title:        { color: "#1a1a2e", fontSize: "clamp(1.5rem,3.2vw,2.2rem)", fontWeight: "800" },
+  ctaText:      { color: "#ffffff", backgroundColor: "#2563eb", fontSize: "1rem", borderRadius: "999px" },
+  submitText:   { color: "#ffffff", backgroundColor: "#2563eb", fontSize: "1rem" },
+  description:  { color: "#6a6a6a", fontSize: "0.95rem", lineHeight: "1.65" },
+  note:         { color: "#4a6fa5", fontSize: "0.9rem" },
+  text:         { color: "#2e2e2e", fontSize: "0.95rem" },
+  label:        { color: "#6a6a6a", fontSize: "0.85rem", fontWeight: "600" },
+  quote:        { color: "#6a6a6a", fontSize: "1rem", fontStyle: "italic" },
+  result:       { color: "#2563eb", fontSize: "0.9rem", fontWeight: "700" },
+  copyright:    { color: "#acacac", fontSize: "0.85rem" },
+};
+
+/** Default styles untuk list item sub-fields */
+const DEFAULT_LIST_ITEM_STYLES: Record<string, Record<string, string>> = {
+  title:  { color: "#1a1a2e", fontSize: "1.05rem", fontWeight: "700" },
+  desc:   { color: "#6a6a6a", fontSize: "0.95rem", lineHeight: "1.6" },
+  label:  { color: "#2e2e2e", fontSize: "0.9rem" },
+  q:      { color: "#1a1a2e", fontSize: "0.95rem", fontWeight: "600" },
+  a:      { color: "#6a6a6a", fontSize: "0.95rem", lineHeight: "1.7" },
+  name:   { color: "#1a1a2e", fontSize: "0.95rem", fontWeight: "700" },
+  role:   { color: "#acacac", fontSize: "0.85rem" },
+  quote:  { color: "#6a6a6a", fontSize: "1rem", fontStyle: "italic" },
+  result: { color: "#2563eb", fontSize: "0.9rem", fontWeight: "700" },
+};
+
+/** Isi _styles dengan default bila kosong */
+function ensureDefaultStyles(content: Record<string, any>, schema: FieldDef[]): Record<string, any> {
+  if (content._styles && Object.keys(content._styles).length > 0) return content;
+  const styles: Record<string, Record<string, string>> = {};
+  for (const field of schema) {
+    if (field.type === "list" && field.item) {
+      // Default untuk sub-fields pertama
+      for (const sub of field.item) {
+        if (!styles[sub.key] && DEFAULT_LIST_ITEM_STYLES[sub.key]) {
+          styles[sub.key] = { ...DEFAULT_LIST_ITEM_STYLES[sub.key] };
+        }
+      }
+    } else if (DEFAULT_ELEMENT_STYLES[field.key]) {
+      styles[field.key] = { ...DEFAULT_ELEMENT_STYLES[field.key] };
+    }
+  }
+  return { ...content, _styles: styles };
+}
+
 function ModuleFields({
   moduleId,
   content,
@@ -134,6 +193,18 @@ function ModuleFields({
   onChange: (next: Record<string, any>) => void;
 }) {
   const name = MODULE_CATALOG.find((x) => x.id === moduleId)?.name ?? moduleId;
+  const textFields = getTextFields(schema);
+  // Pre-fill default styles bila kosong
+  const contentWithDefaults = ensureDefaultStyles(content, schema);
+  const styles: Record<string, StyleProps> = contentWithDefaults._styles || {};
+  const sectionStyle: SectionStyleProps = content._sectionStyle || {};
+
+  const updateStyle = (fieldKey: string, nextStyle: StyleProps) => {
+    const newStyles = { ...styles, [fieldKey]: nextStyle };
+    // Hapus field kosong
+    if (Object.keys(nextStyle).length === 0) delete newStyles[fieldKey];
+    onChange({ ...content, _styles: newStyles });
+  };
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -144,6 +215,7 @@ function ModuleFields({
         <span className="text-sm font-semibold text-[var(--text)]">{name}</span>
       </div>
 
+      {/* Content Fields */}
       <div className="space-y-3">
         {schema.map((field) => {
           const value = content[field.key];
@@ -257,6 +329,33 @@ function ModuleFields({
           );
         })}
       </div>
+
+      {/* Section Style */}
+      <div className="mt-4">
+        <SectionStyleEditor
+          styles={sectionStyle}
+          onChange={(next) => onChange({ ...content, _sectionStyle: next })}
+        />
+      </div>
+
+      {/* Element Style Section */}
+      {textFields.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-1.5 border-t border-[var(--border)] pt-3">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-faint)]">🎨 Style per Elemen</span>
+          </div>
+          <div className="space-y-1.5">
+            {textFields.map((fieldKey) => (
+              <StyleEditor
+                key={fieldKey}
+                elementKey={fieldKey}
+                styles={styles[fieldKey] || {}}
+                onChange={(next) => updateStyle(fieldKey, next)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

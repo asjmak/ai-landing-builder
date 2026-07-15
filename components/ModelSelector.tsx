@@ -3,16 +3,12 @@
 import { useState } from "react";
 
 export const FREE_MODELS = [
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "tencent/hy3:free",
-  "poolside/laguna-xs-2.1:free",
-  "cohere/north-mini-code:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "google/gemma-4-31b-it:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
+  "mimo/mimo-v2.5-pro",
+  "mimo/mimo-v2.5",
+  "mimo/mimo-v2-omni",
 ];
 
-export const DEFAULT_PAID_MODEL = "openai/gpt-4o-mini";
+export const DEFAULT_PAID_MODEL = "mimo/mimo-v2.5-pro";
 
 /** True bila model termasuk daftar gratis (biasanya punya batas context/output kecil). */
 export function isFreeModel(model: string): boolean {
@@ -20,9 +16,9 @@ export function isFreeModel(model: string): boolean {
 }
 
 /** Default model "pintar" untuk Strategist & Copywriter. */
-export const STRATEGIST_DEFAULT = "tencent/hy3:free";
+export const STRATEGIST_DEFAULT = "mimo/mimo-v2.5-pro";
 /** Default model "hemat" untuk Developer (render HTML). */
-export const DEVELOPER_DEFAULT = "nvidia/nemotron-3-super-120b-a12b:free";
+export const DEVELOPER_DEFAULT = "mimo/mimo-v2.5";
 
 const selCls =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--field)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-faint)] outline-none transition focus:border-[var(--accent)]/60 focus:ring-2 focus:ring-[var(--accent)]/20";
@@ -58,7 +54,7 @@ export default function ModelSelector({
             mode === "free" ? "bg-[var(--surface-hover)] text-[var(--text-strong)] shadow-sm" : "text-[var(--text-faint)]"
           }`}
         >
-          Gratis (Free)
+          Pilih Model
         </button>
         <button
           type="button"
@@ -70,7 +66,7 @@ export default function ModelSelector({
             mode === "custom" ? "bg-[var(--surface-hover)] text-[var(--text-strong)] shadow-sm" : "text-[var(--text-faint)]"
           }`}
         >
-          Berbayar (Input Sendiri)
+          Custom
         </button>
       </div>
 
